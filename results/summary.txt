@@ -1,0 +1,17 @@
+[nbody]
+baseline_mean_seconds=0.229964104
+baseline_stdev_seconds=0.003683926
+optimized_mean_seconds=0.009942751
+optimized_stdev_seconds=0.000250360
+speedup=23.1288x
+time_reduction_percent=95.68
+requirement_met=yes
+
+[pyflate]
+baseline_mean_seconds=1.121246417
+baseline_stdev_seconds=0.010397746
+optimized_mean_seconds=0.781944607
+optimized_stdev_seconds=0.007491676
+speedup=1.4339x
+time_reduction_percent=30.26
+requirement_met=yes

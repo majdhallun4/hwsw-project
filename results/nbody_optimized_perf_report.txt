@@ -1,0 +1,171 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 14K of event 'cpu-clock:u'
+# Event count (approx.): 14494494480
+#
+# Overhead  Command  Shared Object                               Symbol                        
+# ........  .......  ..........................................  ..............................
+#
+    63.56%  python3  libm.so.6                                   [.] __ieee754_pow_fma
+            |
+            ---__ieee754_pow_fma
+
+     6.69%  python3  libm.so.6                                   [.] pow@GLIBC_2.2.5
+            |
+            ---pow@GLIBC_2.2.5
+
+     4.16%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f478
+            |
+            ---0x7f45cac5f478
+
+     2.42%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f47c
+            |
+            ---0x7f45cac5f47c
+
+     1.12%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f45f
+            |
+            ---0x7f45cac5f45f
+
+     0.92%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f4fd
+            |
+            ---0x7f45cac5f4fd
+
+     0.90%  python3  libm.so.6                                   [.] 0x000000000000e304
+            |
+            ---0x7f45ceaaa304
+
+     0.86%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f489
+            |
+            ---0x7f45cac5f489
+
+     0.85%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f4cc
+            |
+            ---0x7f45cac5f4cc
+
+     0.81%  python3  _helperlib.cpython-310-x86_64-linux-gnu.so  [.] pow@plt
+            |
+            ---pow@plt
+
+     0.80%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f4a1
+            |
+            ---0x7f45cac5f4a1
+
+     0.77%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f4b6
+            |
+            ---0x7f45cac5f4b6
+
+     0.75%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f418
+            |
+            ---0x7f45cac5f418
+
+     0.74%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f4da
+            |
+            ---0x7f45cac5f4da
+
+     0.71%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f465
+            |
+            ---0x7f45cac5f465
+
+     0.69%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f4eb
+            |
+            ---0x7f45cac5f4eb
+
+     0.68%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f404
+            |
+            ---0x7f45cac5f404
+
+     0.61%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f438
+            |
+            ---0x7f45cac5f438
+
+     0.59%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f44d
+            |
+            ---0x7f45cac5f44d
+
+     0.58%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f3cc
+            |
+            ---0x7f45cac5f3cc
+
+     0.57%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f3b6
+            |
+            ---0x7f45cac5f3b6
+
+     0.57%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f3e3
+            |
+            ---0x7f45cac5f3e3
+
+     0.50%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f394
+     0.46%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f3f4
+     0.41%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f3fc
+     0.40%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f36c
+     0.39%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f3a1
+     0.37%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f3d3
+     0.36%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f37a
+     0.35%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f33a
+     0.35%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f3c3
+     0.34%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f350
+     0.33%  python3  _helperlib.cpython-310-x86_64-linux-gnu.so  [.] numba_pow
+     0.32%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f3a8
+     0.32%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f39b
+     0.31%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f38d
+     0.31%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f44a
+     0.30%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f3ea
+     0.29%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f320
+     0.28%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f430
+     0.23%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f5b8
+     0.21%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f459
+     0.20%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f56f
+     0.18%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f590
+     0.17%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f5a2
+     0.17%  python3  python3.10                                  [.] gc_collect_main.lto_priv.0
+     0.15%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f582
+     0.15%  python3  python3.10                                  [.] deduce_unreachable
+     0.14%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f5ae
+     0.13%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f6bb
+     0.12%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f474
+     0.12%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f6cf
+     0.12%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f5db
+     0.11%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f531
+     0.10%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f2fc
+     0.10%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f5c7
+     0.09%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f557
+     0.08%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f46b
+     0.08%  python3  python3.10                                  [.] visit_reachable.lto_priv.0
+     0.08%  python3  python3.10                                  [.] dict_traverse.lto_priv.0
+     0.07%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f316
+     0.06%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f6af
+     0.04%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f2ee
+     0.04%  python3  [JIT] tid 1271                              [.] 0x00007f45cac5f545
+     0.03%  python3  python3.10                                  [.] code_dealloc.lto_priv.0
+     0.03%  python3  python3.10                                  [.] func_traverse.lto_priv.0
+     0.03%  python3  python3.10                                  [.] type_traverse.lto_priv.0
+     0.02%  python3  python3.10                                  [.] list_traverse.lto_priv.0
+     0.02%  python3  python3.10                                  [.] tupletraverse.lto_priv.0
+     0.01%  python3  libc.so.6                                   [.] _int_free
+     0.01%  python3  python3.10                                  [.] PyObject_GC_Del
+     0.01%  python3  python3.10                                  [.] meth_dealloc.lto_priv.0
+     0.01%  python3  python3.10                                  [.] set_traverse.lto_priv.0
+     0.01%  python3  python3.10                                  [.] tupledealloc.lto_priv.0
+     0.01%  python3  _ctypes.cpython-310-x86_64-linux-gnu.so     [.] PyCData_clear
+     0.01%  python3  libc.so.6                                   [.] __run_exit_handlers
+     0.01%  python3  python3.10                                  [.] PyMem_Free
+     0.01%  python3  python3.10                                  [.] PyObject_Free
+     0.01%  python3  python3.10                                  [.] _PyDict_DelItem_KnownHash
+     0.01%  python3  python3.10                                  [.] _PyEval_EvalFrameDefault
+     0.01%  python3  python3.10                                  [.] _PyTuple_ClearFreeList
+     0.01%  python3  python3.10                                  [.] cell_dealloc.lto_priv.0
+     0.01%  python3  python3.10                                  [.] clear_weakref.lto_priv.0
+     0.01%  python3  python3.10                                  [.] descr_dealloc.lto_priv.0
+     0.01%  python3  python3.10                                  [.] dict_dealloc.lto_priv.0
+     0.01%  python3  python3.10                                  [.] insertdict.lto_priv.0
+     0.01%  python3  python3.10                                  [.] subtype_dealloc.lto_priv.0
+     0.01%  python3  python3.10                                  [.] type_clear.lto_priv.0
+     0.01%  python3  python3.10                                  [.] unicode_dealloc.lto_priv.0
+
+
+#
+# (Cannot load tips.txt file, please install perf!)
+#

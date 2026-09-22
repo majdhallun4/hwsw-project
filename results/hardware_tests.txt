@@ -1,0 +1,23 @@
+make: Entering directory '/root/hwsw_final_project/hardware'
+mkdir -p build
+iverilog -g2012 -s tb_nbody_pair_accel -o build/tb_nbody_pair_accel \
+	nbody_pair_accel.sv tb_nbody_pair_accel.sv
+nbody_pair_accel.sv:66: sorry: constant selects in always_* processes are not currently supported (all bits will be included).
+nbody_pair_accel.sv:66: sorry: constant selects in always_* processes are not currently supported (all bits will be included).
+nbody_pair_accel.sv:66: sorry: constant selects in always_* processes are not currently supported (all bits will be included).
+nbody_pair_accel.sv:66: sorry: constant selects in always_* processes are not currently supported (all bits will be included).
+nbody_pair_accel.sv:66: sorry: constant selects in always_* processes are not currently supported (all bits will be included).
+nbody_pair_accel.sv:66: sorry: constant selects in always_* processes are not currently supported (all bits will be included).
+nbody_pair_accel.sv:66: sorry: constant selects in always_* processes are not currently supported (all bits will be included).
+nbody_pair_accel.sv:66: sorry: constant selects in always_* processes are not currently supported (all bits will be included).
+nbody_pair_accel.sv:66: sorry: constant selects in always_* processes are not currently supported (all bits will be included).
+nbody_pair_accel.sv:66: sorry: constant selects in always_* processes are not currently supported (all bits will be included).
+vvp build/tb_nbody_pair_accel
+PASS: tb_nbody_pair_accel
+mkdir -p build
+iverilog -g2012 -s tb_huffman_decode_accel -o build/tb_huffman_decode_accel \
+	huffman_decode_accel.sv tb_huffman_decode_accel.sv
+huffman_decode_accel.sv:72: sorry: constant selects in always_* processes are not currently supported (all bits will be included).
+vvp build/tb_huffman_decode_accel
+PASS: tb_huffman_decode_accel
+make: Leaving directory '/root/hwsw_final_project/hardware'
