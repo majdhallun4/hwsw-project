@@ -1,0 +1,28 @@
+digraph pyflate_accelerator {
+    rankdir=LR;
+    graph [bgcolor="white", fontname="Helvetica", label="Pyflate canonical-Huffman offload", labelloc=t];
+    node [shape=box, style="rounded,filled", fillcolor="#eefaf1", fontname="Helvetica"];
+    edge [fontname="Helvetica"];
+
+    python [label="Pyflate software\nblock parser + canonical tables"];
+    driver [label="User driver\nsaved block boundary\nerror fallback"];
+    cfg [label="MMIO / config DMA\ncode, length, symbol"];
+    input [label="Compressed-input DMA\n32-bit refill windows"];
+    normalize [label="Bit-order normalizer\nnext stream bit -> bit 0\n(BZip2: reverse bits per byte)"];
+    table [label="Programmable table\nup to 320 entries"];
+    decode [label="huffman_decode_accel\nparallel prefix compare\nsymbol + consumed bits"];
+    stages [label="Software continuation\nMTF -> RLE -> inverse BWT"];
+    output [label="Decoded byte stream"];
+
+    python -> driver;
+    driver -> cfg;
+    cfg -> table;
+    driver -> input;
+    input -> normalize;
+    normalize -> decode [label="window/count"];
+    table -> decode;
+    decode -> stages [label="ready/valid"];
+    stages -> output;
+    decode -> driver [style=dashed, color="#b22222", label="explicit error"];
+    driver -> python [style=dashed, color="#b22222", label="software fallback"];
+}

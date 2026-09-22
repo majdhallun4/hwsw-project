@@ -1,0 +1,27 @@
+digraph nbody_accelerator {
+    rankdir=LR;
+    graph [bgcolor="white", fontname="Helvetica", label="N-body pair-force offload", labelloc=t];
+    node [shape=box, style="rounded,filled", fillcolor="#eef4ff", fontname="Helvetica"];
+    edge [fontname="Helvetica"];
+
+    python [label="Python / Numba host\npositions, velocities, masses"];
+    preprocess [label="CPU preprocessing\ndelta range checks\ninv_r3 = 1/r^3"];
+    driver [label="User driver\nbatching + fallback"];
+    mmio [label="MMIO command/status\nring base, length, start"];
+    dma_in [label="Input DMA ring\nQ16.16 positions/masses\nQ2.30 inv_r3"];
+    accel [label="nbody_pair_accel\nsubtract -> mass product\n-> inv_r3 multiply\n-> XYZ multiply/saturate"];
+    dma_out [label="Output DMA ring\n+force and -force"];
+    integrate [label="CPU integration\napply dt/mass in pair order"];
+
+    python -> preprocess;
+    preprocess -> driver;
+    driver -> mmio;
+    driver -> dma_in;
+    mmio -> accel [label="control"];
+    dma_in -> accel [label="ready/valid"];
+    accel -> dma_out [label="ready/valid"];
+    dma_out -> integrate;
+    integrate -> python;
+    accel -> driver [style=dashed, color="#b22222", label="overflow/status"];
+    driver -> python [style=dashed, color="#b22222", label="CPU fallback"];
+}
