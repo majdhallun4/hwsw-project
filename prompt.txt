@@ -1,0 +1,111 @@
+AI Tool Usage - Prompt Log
+==========================
+
+Tool: GitHub Copilot CLI (assisted with code, RTL, and report drafting).
+This file documents the prompts/instructions we gave the AI during the
+project, roughly in the order we used them. Credentials and passwords were
+never included in any prompt or in this repo.
+
+
+1. Understanding the benchmarks
+-------------------------------
+- "Explain what the pyperformance nbody benchmark does - what it simulates,
+  what data structures it uses for the bodies, and where the O(N^2) work is
+  in the advance() function."
+- "Walk through the pyflate benchmark. What is it decompressing, and which
+  classes handle the bit reading and Huffman decoding? Point out the parts
+  that look like the hot path."
+- "In pyflate, how does the original HuffmanTable find a symbol? Is the
+  symbol lookup linear over the table entries?"
+
+
+2. Profiling setup (run in the QEMU VM)
+---------------------------------------
+- "Give me the exact perf command to profile nbody with the debug Python
+  build and export a text report, matching the course guide
+  (perf record -F 999 -g -- python3-dbg ...)."
+- "We need perf to actually capture samples in the VM - what do we set for
+  perf_event_paranoid and kptr_restrict before recording?"
+- "How do we turn perf.data into a flame graph? Give the steps using
+  Brendan Gregg's stackcollapse-perf.pl and flamegraph.pl."
+- "Explain how to read the nbody flame graph - why is _PyEval_EvalFrameDefault
+  so wide, and what does PyFloat_FromDouble taking ~7% tell us?"
+
+
+3. nbody optimization
+---------------------
+- "The baseline nbody stores positions and velocities as nested Python lists
+  and boxes every float. Rewrite the state as dense NumPy float64 arrays for
+  positions, velocities, and masses while keeping the same physics and the
+  same 20000-iteration workload."
+- "Move the pairwise force computation and the position integration into
+  functions compiled with numba @njit so the inner loop is not running in the
+  CPython interpreter. Keep results numerically identical to the baseline."
+- "How do we make sure the optimized nbody is actually correct and not just
+  fast? We want to compare final positions/velocities and total energy
+  against the baseline."
+
+
+4. pyflate optimization
+-----------------------
+- "The pyflate hot path is find_next_symbol, which scans the Huffman table
+  linearly for every symbol. Replace it with a lookup keyed by code length:
+  build per-bit-length dictionaries mapping the snooped bits to the symbol,
+  so decoding is a dict lookup instead of a linear scan."
+- "Refactor populate_huffman_symbols to build these per-length lookup tables
+  once, and rewrite find_next_symbol to iterate over lengths and do a single
+  dict.get on the snooped bits."
+- "Verify the optimized pyflate produces byte-identical decompressed output
+  to the baseline, and check it against the expected MD5 of the input."
+
+
+5. Measuring the improvement
+----------------------------
+- "Give the pyperformance/pyperf commands to run baseline and optimized as
+  separate files, save JSON, and print the percentage difference with
+  pyperf compare_to. We need at least 7% on each benchmark."
+- "Write a shell script (script_nbody.sh / script_pyflate.sh) that does env
+  setup, runs the baseline, runs the optimized version, generates the perf
+  report and flame graph, and prints the comparison."
+
+
+6. Hardware acceleration proposals
+----------------------------------
+- "For nbody, the per-pair force update is a multiply-accumulate on the
+  displacement vector scaled by m_a*m_b*inv_r3. Write a SystemVerilog module
+  for a fixed-point pairwise-force datapath: valid/ready handshake, Q16.16
+  positions/masses, unsigned Q2.30 inverse-distance-cubed input, and six
+  force outputs. Include saturation on overflow."
+- "Explain the fixed-point format choices and the output shift, and write a
+  self-checking testbench that drives known pairs and checks the outputs."
+- "For pyflate, propose a table-driven Huffman decoder in SystemVerilog that
+  takes a bit window and the per-length tables and emits a decoded symbol.
+  Define the interface, the internal comparison/lookup logic, and a
+  self-checking testbench."
+- "Describe the hardware/software interface for each accelerator -
+  memory-mapped registers vs DMA, what software changes CPython would need,
+  and the operating-frequency assumption. Do NOT invent synthesis, area, or
+  power numbers; present area/power/frequency as qualitative trade-offs and
+  clearly label estimates as estimates."
+
+
+7. Reporting and repo
+---------------------
+- "Draft report_nbody.txt and report_pyflate.txt with the sections required
+  by the project: Overview, Initial Analysis, Optimizations, Performance
+  Comparison, Hardware Acceleration Proposal, Conclusion. Leave any measured
+  field as a placeholder until we fill it with real VM numbers."
+- "Write a README.md explaining the repo layout and the exact steps to
+  reproduce the results, and a block diagram (.dot -> .svg) for each
+  accelerator showing its interfaces and integration."
+
+
+Notes on how we used the AI
+---------------------------
+- We ran all profiling, pyperf measurements, and RTL simulations ourselves in
+  the course QEMU VM; the numbers in the reports come from those runs, not
+  from the AI.
+- We reviewed and edited the AI's code and RTL, and validated correctness
+  (numeric/energy check for nbody, byte-for-byte + MD5 for pyflate,
+  self-checking testbenches for the hardware).
+- Credentials were never shared with the AI or committed to the repo.
