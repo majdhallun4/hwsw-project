@@ -1,0 +1,176 @@
+N-body Benchmark: Software Optimization and Hardware Acceleration
+=================================================================
+
+Status
+------
+
+Final measurements were collected in the course QEMU VM. Correctness validation,
+rigorous pyperf runs, Linux perf sampling, flame-graph generation, and RTL
+simulation all completed. Raw timing JSON, text profiler reports, SVG flame
+graphs, correctness evidence, and environment metadata are retained under
+`results/`.
+
+Overview
+--------
+
+N-body is an approved pyperformance benchmark derived from the Computer
+Language Benchmarks Game. It simulates gravitational interaction among the Sun,
+Jupiter, Saturn, Uranus, and Neptune. Each body stores three double-precision
+position values, three velocity values, and a mass. The baseline represents
+bodies as nested Python lists and tuples and precomputes the ten unordered body
+pairs.
+
+For every time step, the baseline computes displacement `(dx, dy, dz)`, squared
+distance, inverse distance cubed, and two mass-scaled velocity updates for every
+pair. It then integrates all five positions. For N bodies and T time steps, the
+work is O(T*N^2); with N fixed at five, CPython object handling, bytecode
+dispatch, nested-list indexing, and floating-point object creation dominate.
+
+Initial analysis
+----------------
+
+The baseline source is `benchmarks/nbody_baseline.py`. The profile workload uses
+the same 20,000 time steps as upstream pyperformance and repeats the operation
+long enough for stable sampling.
+
+The project also runs the package's unchanged benchmark through
+`python -m pyperformance run --benchmarks nbody,pyflate`. The controlled
+comparison uses vendored version-1.14.0 sources with the underlying pyperf
+runner so the baseline and modified implementation can be measured as separate
+files while preserving identical pyperf calibration and statistics.
+
+The baseline profile contains 29,396 user-space CPU-clock samples with zero
+lost samples. `_PyEval_EvalFrameDefault` accounts for 43.54% of samples,
+followed by `PyFloat_FromDouble` at 7.09%, generic binary dispatch `binary_op1`
+at 5.49%, `float_mul` at 3.46%, float deallocation at 3.04%, and list assignment
+at 2.88%. The actual inverse-distance power operation
+`__ieee754_pow_fma` accounts for only 2.03%. The baseline flame graph therefore
+shows that interpreter dispatch, boxed-float lifecycle, generic arithmetic, and
+list mutation consume much more CPU time than the mathematical kernel itself.
+Some child instruction addresses remain unresolved, but the debug Python
+binary resolves the important CPython runtime symbols and no samples were lost.
+
+Optimization
+------------
+
+The optimized source is `benchmarks/nbody_optimized.py`.
+
+1. Positions, velocities, and masses are converted from pointer-rich nested
+   Python objects to separate dense NumPy float64 arrays.
+2. The complete pairwise interaction and integration loops are compiled with
+   Numba in nopython mode.
+3. Compilation occurs before `pyperf.perf_counter()`, so the primary result
+   represents repeated steady-state execution. Cold compilation must be
+   discussed separately rather than hidden.
+4. Fast-math is disabled. Pair order and update order are unchanged.
+5. A returned energy checksum prevents the energy calculations from becoming
+   dead work.
+
+This optimization removes most interpreter dispatch and boxing while retaining
+the same O(T*N^2) symplectic-Euler update structure and float64 data.
+
+Correctness
+-----------
+
+`validate.py --only nbody` starts both implementations from the same state,
+offsets momentum, executes 20,000 steps, and compares all positions, all
+velocities, and final total energy with `rtol=1e-12` and `atol=1e-12`.
+
+The recorded validation result is:
+
+    PASS nbody: energy=-0.169089262755272,
+    max_position_error=0.000e+00, max_velocity_error=0.000e+00
+
+The zero reported error means the complete float64 state matched for this
+workload, despite validation permitting a strict 1e-12 tolerance.
+
+Performance comparison
+----------------------
+
+The pinned-CPU rigorous pyperf run produced 120 values per implementation:
+
+    +-----------+----------------+------------------------+
+    | Benchmark | nbody_baseline | nbody_optimized        |
+    +===========+================+========================+
+    | nbody     | 230 ms         | 9.94 ms: 23.13x faster |
+    +-----------+----------------+------------------------+
+
+The exact means are 229.964 ms (standard deviation 3.684 ms, CV 1.60%) and
+9.943 ms (standard deviation 0.250 ms, CV 2.52%). This is a 23.1288x speedup
+and a 95.68% execution-time reduction, far above the required 7%. Pyperf warns
+that the optimized result does not establish variation below 1% with 95%
+confidence; that does not threaten the conclusion because even its 11.3 ms
+maximum is more than 20 times faster than the 226 ms baseline minimum. The
+official unmodified pyperformance result was 231 ms +/- 5 ms, agreeing with the
+vendored baseline result.
+
+Measurements used CPython 3.10.12, Numba 0.67.0, NumPy 1.26.4, and pyperf 2.10.0
+on one pinned virtual CPU backed by an Intel Xeon E5-2630 v3 at 2.40 GHz under
+KVM and Ubuntu kernel 5.15.0-1106-kvm.
+
+The optimized profile contains 14,480 samples with zero losses.
+`_PyEval_EvalFrameDefault` falls from 43.54% to 0.01%. The remaining workload
+is dominated by inverse-distance arithmetic: `__ieee754_pow_fma` is 63.56%
+and the public `pow` entry is another 6.69%. JIT-compiled addresses account for
+most of the remaining compute. Thus Numba removes the intended interpreter and
+boxing bottleneck and exposes the power operation as the next optimization
+target.
+
+Cold deployment cost was measured separately: importing the optimized module
+took 0.319 s and first compilation took 0.968 s, for 1.288 s total. The
+steady-state saving is about 0.220 s per benchmark operation, so the measured
+cold cost is recovered after approximately six operations. One-shot use should
+prefer baseline or ahead-of-time compilation; repeated scientific simulation
+benefits strongly from the JIT kernel.
+
+Hardware acceleration proposal
+------------------------------
+
+The proposed accelerator streams independent body-pair records through a
+fixed-point force pipeline, then returns equal-and-opposite velocity impulses.
+The host batches pair records in pinned memory, submits a DMA descriptor through
+an MMIO command queue, and applies returned impulses in deterministic pair order.
+Unsupported sizes or numerical ranges fall back to the CPU implementation.
+
+See `hardware/HARDWARE.md`, `hardware/nbody_pair_accel.sv`, its
+self-checking testbench, and `diagrams/nbody_accelerator.svg` for complete
+interfaces and trade-offs.
+
+The accelerator computes force:
+
+    force_1 = +(r2-r1) * m1 * m2 * inverse_distance_cubed
+    force_2 = -force_1
+
+Software applies the time step and divides by each body's mass when accumulating
+velocity updates. This split lets one symmetric hardware result serve both
+bodies and keeps integration policy in software.
+
+The RTL design documents its fixed-point approximation explicitly. A production
+design would add a pipelined reciprocal-square-root unit or vendor floating-point
+IP; this project does not claim bitwise equivalence to Python float64.
+
+This submitted block is intentionally not claimed as an end-to-end accelerator.
+It leaves inverse-distance cubed on the host, and each simulation step depends
+on velocity updates from the prior step. Sending only ten pair records over
+PCIe per step would make launch and transfer latency dominant. If profiling
+attributes a fraction P of time to the multiply/update portion and an integrated
+pipeline accelerates that portion by S, the Amdahl bound is
+`1 / ((1-P) + P/S)`. The VM profile shows that power-related functions occupy
+about 70.25% of optimized execution. A production pipeline that includes this
+stage and accelerates the full region by 20x has an ideal Amdahl bound near
+3.0x before DMA and control overhead. The submitted multiply-only block cannot
+reach that bound. A credible production design must integrate pair scheduling,
+reciprocal square root, accumulation, and multiple time steps on device before
+returning state.
+
+Conclusion
+----------
+
+Contiguous arrays plus Numba nopython compilation reduced steady-state time by
+95.68% while preserving the complete simulation state and energy. The flame
+graph confirms that CPython overhead was removed and that inverse-distance
+power evaluation is now dominant. The 1.288 s cold-start cost breaks even after
+about six benchmark operations. Hardware offload is credible only when enough
+pairs and time steps remain on device to amortize DMA setup and pipeline
+fill/drain; the reference RTL demonstrates the fixed-point pair datapath and
+interface but does not claim an end-to-end measured hardware speedup.

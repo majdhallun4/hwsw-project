@@ -1,0 +1,171 @@
+Pyflate Benchmark: Software Optimization and Hardware Acceleration
+=================================================================
+
+Status
+------
+
+Final measurements were collected in the course QEMU VM. Correctness validation,
+rigorous pyperf runs, Linux perf sampling, flame-graph generation, and RTL
+simulation all completed. Raw timing JSON, text profiler reports, SVG flame
+graphs, correctness evidence, and environment metadata are retained under
+`results/`.
+
+Overview
+--------
+
+Pyflate is an approved pyperformance benchmark containing a pure-Python
+GZip/DEFLATE and BZip2 decoder. The supplied workload decodes
+`interpreter.tar.bz2`. The exercised BZip2 path includes bitstream extraction,
+canonical Huffman table construction and symbol decoding, move-to-front
+decoding, run-length decoding, inverse Burrows-Wheeler transform, and output
+assembly.
+
+Important data structures are an integer bit reservoir, lists of Huffman code
+objects, move-to-front symbol lists, selector lists, BWT pointer arrays, and a
+list of byte strings for output. The upstream decoder validates output using
+MD5 digest `afa004a630fe072901b1d9628b960974`.
+
+Initial analysis
+----------------
+
+The baseline source is `benchmarks/pyflate_baseline.py`.
+
+The project also records the package's unchanged workload through
+`python -m pyperformance run --benchmarks nbody,pyflate`. The controlled
+baseline/optimized comparison uses vendored version-1.14.0 sources with the
+underlying pyperf runner, which permits source modification without changing
+the input, calibration mechanism, or statistical format.
+
+Its Huffman decoder linearly scans the sorted table for every output symbol,
+repeatedly peeks at the bitstream as code lengths change, and creates a fresh
+bit mask on each peek/read. Input is fetched through tens of thousands of
+one-byte `read(1)` calls. Move-to-front updates rebuild a list through slices.
+These operations are especially expensive in CPython because they multiply
+method calls, allocations, bytecode dispatch, and pointer traffic.
+
+The baseline profile contains 47,455 user-space CPU-clock samples with zero
+lost samples. `_PyEval_EvalFrameDefault` accounts for 23.31%, followed by debug
+allocator address checking at 4.09%, allocation-size reads at 2.88%, `memset`
+at 2.86%, list deallocation and generic call dispatch at 2.54% each,
+`list_ass_slice` at 2.14%, dictionary lookup at 1.94%, and object allocation at
+1.83%. `list_concat` contributes another 1.14%. The flame graph therefore
+supports the source-level diagnosis: the decoder performs large amounts of
+interpreter dispatch, temporary-list construction, allocation, and lookup
+around each variable-length symbol instead of spending time in a compact decode
+kernel.
+
+Optimization
+------------
+
+The optimized source is `benchmarks/pyflate_optimized.py`.
+
+1. The compressed stream is read once into a contiguous bytes buffer.
+2. The bit reader indexes bytes directly, avoiding one Python file-method call
+   per compressed byte.
+3. Masks for widths 0 through 64 are precomputed.
+4. Canonical Huffman symbols are grouped by bit length into forward and
+   bit-reversed dictionaries. Decoding probes only lengths that occur and uses
+   O(1)-average dictionary lookup instead of scanning code objects.
+5. Move-to-front uses in-place `pop` and `insert` instead of constructing three
+   slices and concatenating them.
+
+The decoder algorithm, code tables, block parsing, MTF/BWT/RLE stages, and
+output remain unchanged. The optimization primarily reduces interpreter work
+and improves locality.
+
+Correctness
+-----------
+
+`validate.py --only pyflate` decodes the same archive with both implementations,
+requires byte-for-byte equality, checks the 399,360-byte output length, and
+checks the upstream MD5 digest.
+
+The recorded validation result is:
+
+    PASS pyflate: bytes=399360,
+    md5=afa004a630fe072901b1d9628b960974
+
+The baseline and optimized byte strings are also compared directly before the
+length and digest checks.
+
+Performance comparison
+----------------------
+
+The pinned-CPU rigorous pyperf run produced 120 values per implementation:
+
+    +-----------+------------------+----------------------+
+    | Benchmark | pyflate_baseline | pyflate_optimized    |
+    +===========+==================+======================+
+    | pyflate   | 1.12 sec         | 782 ms: 1.43x faster |
+    +-----------+------------------+----------------------+
+
+The exact means are 1.121246 s (standard deviation 0.010398 s, CV 0.93%) and
+0.781945 s (standard deviation 0.007492 s, CV 0.96%). This is a 1.4339x speedup
+and a 30.26% execution-time reduction, comfortably above the required 7%.
+There were no stability warnings for these two controlled runs. The official
+unmodified pyperformance result was 1.11 s +/- 0.02 s, agreeing with the
+vendored baseline.
+
+Measurements used CPython 3.10.12 and pyperf 2.10.0 on one pinned virtual CPU
+backed by an Intel Xeon E5-2630 v3 at 2.40 GHz under KVM and Ubuntu kernel
+5.15.0-1106-kvm.
+
+The optimized profile contains 34,535 samples with zero losses, 27.2% fewer
+than the baseline's 47,455 samples. `_PyEval_EvalFrameDefault` rises slightly
+as a percentage from 23.31% to 24.96%, but its absolute sampled time falls by
+about 22%. More importantly, `list_ass_slice` falls from 2.14% to 0.08%, a
+roughly 97% reduction in that operation's sample count, and `list_concat`
+disappears from the significant entries. Allocation-size work and dictionary
+lookup also fall in absolute sampled time. Perf resolves CPython C functions
+rather than the Python method names `find_next_symbol`, `_more`, `_read`, and
+`_mask`; the reduction in their implementation costs is visible through the
+shorter run, eliminated slicing/concatenation, fewer file-read frames, and
+lower allocation work. The remaining dominant component is general Python
+evaluation and object handling around MTF, RLE, inverse BWT, and output
+construction.
+
+Hardware acceleration proposal
+------------------------------
+
+The proposed canonical-Huffman unit accepts a bit window plus programmed table
+entries, requires exactly one matching prefix-free code, and returns a symbol
+and consumed bit count through a ready/valid interface. Software constructs the canonical
+tables exactly as today, programs the accelerator, batches compressed blocks in
+pinned buffers, and uses DMA descriptors plus an MMIO command/completion queue.
+Malformed or unsupported tables return an explicit error and fall back to the
+verified software decoder.
+
+See `hardware/HARDWARE.md`, `hardware/huffman_decode_accel.sv`, its self-checking
+testbench, and `diagrams/pyflate_accelerator.svg`.
+
+A production pipeline would combine bit-window refill, Huffman lookup,
+literal/length expansion, distance copy, MTF/RLE, and output DMA. The submitted
+RTL focuses on the profiled symbol-lookup kernel and makes no unmeasured
+throughput, area, or power claim.
+
+Separate function-level profiling attributes about 50% of baseline cumulative
+time to `find_next_symbol`; the VM perf profile independently confirms heavy
+interpreter, list, lookup, and allocation cost in the same decode path. If
+lookup and bit-window handling account for P=0.50 and hardware makes that
+region ten times faster, Amdahl's law predicts
+`1 / (0.50 + 0.50/10) = 1.82x` before transfer overhead. At one symbol per
+cycle and an assumed 100 MHz, 148,271 lookups require about 1.48 ms of decoder
+service, but DMA setup, table loading, MTF/RLE, and inverse BWT remain. BZip2's
+two-to-six alternating tables should be banked; repeatedly programming the
+submitted single-table reference would erase much of the benefit. These
+figures are analytical assumptions, not synthesis or measured accelerator
+results.
+
+Conclusion
+----------
+
+Bulk buffering, cached masks, indexed canonical-code lookup, and in-place MTF
+updates reduced execution time by 30.26% with byte-for-byte identical output.
+The flame graphs confirm that list slicing/concatenation and absolute
+interpreter work decreased; general Python execution, memory management,
+MTF/RLE, and inverse BWT remain. Hardware Huffman decoding is plausible only
+with block-sized DMA batches and six banked BZip2 tables so configuration and
+PCIe latency do not dominate. Explicit error codes preserve a software fallback
+at saved block boundaries. The RTL and testbench demonstrate logical behavior,
+including backpressure and malformed-table handling, but no synthesis, area,
+power, or physical hardware speedup is claimed.
