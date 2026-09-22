@@ -1,5 +1,9 @@
 # HWSW Project: N-body and Pyflate Optimization
 
+## submitters
+Majd Hallun - 326310174
+Marwan Sariya - 213769284
+
 This project analyzes and optimizes two approved `pyperformance` workloads:
 
 - **N-body:** gravitational simulation of five solar-system bodies.
